@@ -1,26 +1,26 @@
 #![deny(warnings)]
 
+extern crate bytes;
+extern crate futures;
 extern crate tokio;
 extern crate tokio_codec;
 extern crate tokio_io;
-extern crate futures;
-extern crate bytes;
 
 use std::env;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 use std::thread;
 
-use tokio::prelude::*;
 use futures::sync::mpsc;
+use tokio::prelude::*;
 
 fn main() {
-    let mut args = env::args().skip(1).collect::<Vec<_>>();
+    let args = env::args().skip(1).collect::<Vec<_>>();
 
     // Parse what address we're going to connect to
-    let addr = args.first().unwrap_or_else(|| {
-        panic!("this program requires at least one argument")
-    });
+    let addr = args
+        .first()
+        .unwrap_or_else(|| panic!("this program requires at least one argument"));
     let addr = addr.parse::<SocketAddr>().unwrap();
 
     let (stdin_tx, stdin_rx) = mpsc::channel(0);
@@ -41,9 +41,9 @@ fn main() {
 }
 
 mod codec {
-    use std::io;
     use bytes::{BufMut, BytesMut};
-    use tokio_codec::{Encoder, Decoder};
+    use std::io;
+    use tokio_codec::{Decoder, Encoder};
 
     pub struct Bytes;
 
@@ -74,9 +74,9 @@ mod codec {
 
 mod tcp {
     use tokio;
-    use tokio_codec::Decoder;
     use tokio::net::TcpStream;
     use tokio::prelude::*;
+    use tokio_codec::Decoder;
 
     use bytes::BytesMut;
     use codec::Bytes;
@@ -84,27 +84,28 @@ mod tcp {
     use std::io;
     use std::net::SocketAddr;
 
-    pub fn connect(addr: &SocketAddr,
-                   stdin: Box<Stream<Item = Vec<u8>, Error = io::Error> + Send>)
-        -> Box<Stream<Item = BytesMut, Error = io::Error> + Send>
-    {
+    pub fn connect(
+        addr: &SocketAddr,
+        stdin: Box<Stream<Item = Vec<u8>, Error = io::Error> + Send>,
+    ) -> Box<Stream<Item = BytesMut, Error = io::Error> + Send> {
         let tcp = TcpStream::connect(addr);
 
-        Box::new(tcp.map(move |stream| {
-            let (sink, stream) = Bytes.framed(stream).split();
+        Box::new(
+            tcp.map(move |stream| {
+                let (sink, stream) = Bytes.framed(stream).split();
 
-            tokio::spawn(stdin.forward(sink).then(|result| {
-                if let Err(e) = result {
-                    panic!("failed to write to socket: {}", e)
-                }
-                Ok(())
-            }));
+                tokio::spawn(stdin.forward(sink).then(|result| {
+                    if let Err(e) = result {
+                        panic!("failed to write to socket: {}", e)
+                    }
+                    Ok(())
+                }));
 
-            stream
-        }).flatten_stream())
+                stream
+            }).flatten_stream(),
+        )
     }
 }
-
 
 // Our helper method which will read data from stdin and send it along the
 // sender provided.
@@ -113,8 +114,7 @@ fn read_stdin(mut tx: mpsc::Sender<Vec<u8>>) {
     loop {
         let mut buf = vec![0; 1024];
         let n = match stdin.read(&mut buf) {
-            Err(_) |
-            Ok(0) => break,
+            Err(_) | Ok(0) => break,
             Ok(n) => n,
         };
         buf.truncate(n);
