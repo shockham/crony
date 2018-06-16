@@ -25,7 +25,7 @@ fn main() {
 
     let (stdin_tx, stdin_rx) = mpsc::channel(0);
     thread::spawn(|| read_stdin(stdin_tx));
-    let stdin_rx = stdin_rx.map_err(|_| panic!()); // errors not possible on rx
+    let stdin_rx = stdin_rx.map_err(|_| panic!());
 
     let stdout = tcp::connect(&addr, Box::new(stdin_rx));
 
